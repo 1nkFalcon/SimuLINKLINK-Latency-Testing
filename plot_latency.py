@@ -6,10 +6,10 @@ from matplotlib.ticker import PercentFormatter
 
 import os, json
 
-for i in os.listdir():
+for i in os.listdir("./latencies"):
     splitname = os.path.splitext(i)
     if splitname[-1].lower() == ".json":
-        print(i,"✓" if os.path.exists(splitname[0]+".jpg") else "X")
+        print(i,"✓" if os.path.exists("./exports/"+splitname[0]+".jpg") else "X")
 
 file = input("File: ")
 
@@ -17,7 +17,7 @@ filename = os.path.splitext(file)[0]
 
 data = []
 
-with open(filename+".json", "r") as f:
+with open("./latencies/"+filename+".json", "r") as f:
     data = json.load(f)
 
 # plotting
@@ -40,8 +40,8 @@ plt.title(f"SimuLINKLINK Round-Trip Latency ({relaytime}ms Relay / {samplingtime
 plt.xlabel("Latency (ms)")
 plt.ylabel("Frequency")
 
-plt.savefig(filename+".jpg")
+plt.savefig("./exports/"+filename+".jpg")
 
-print("Plot saved to",filename+".jpg")
+print("Plot saved to","./exports"+filename+".jpg")
 
 plt.show()

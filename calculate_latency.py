@@ -1,19 +1,19 @@
 import csv, os, json
 
-for i in os.listdir():
+for i in os.listdir("./raw"):
     splitname = os.path.splitext(i)
     if splitname[-1].lower() == ".csv":
-        print(i,"✓" if os.path.exists(splitname[0]+".json") else "X")
+        print(i,"✓" if os.path.exists("./latencies/"+splitname[0]+".json") else "X")
 
 file = input("File: ")
 
 filename = os.path.splitext(file)[0]
 
-filejson = filename+".json"
+filejson = "./latencies/"+filename+".json"
 
 data = []
 
-with open(file, newline='') as csvfile:
+with open("./raw/"+file, newline='') as csvfile:
     csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
     c1polarity, c2polarity, triggertime = 0, 0, 0

@@ -6,7 +6,7 @@ from matplotlib.ticker import PercentFormatter
 
 import os, json
 
-for i in os.listdir():
+for i in os.listdir("./latencies"):
     splitname = os.path.splitext(i)
     if splitname[-1].lower() == ".json":
         print(i)
@@ -14,8 +14,8 @@ for i in os.listdir():
 files = []
 labels = []
 while True:
-    file = input("File: ")
-    if file == "":
+    file = "./latencies/"+input("File: ")
+    if file == "./latencies/":
         break
     elif os.path.exists(file):
         labels.append(input("Label: "))
@@ -58,11 +58,17 @@ for i in range(len(files)):
     )
 
 # Adding labels and legend
-samplingtime = input("Sampling time: ")
+samplingtime = input("Sampling time (ms): ")
 plt.title(f"SimuLINKLINK Round-Trip Latency ({samplingtime}ms Sampling)")
 
 plt.xlabel('Latency (ms)')
 plt.ylabel('Frequency')
 plt.legend()
+
+filename = "_".join(labels)+"_comparison"
+
+plt.savefig("./exports/"+filename+".jpg")
+
+print("Plot saved to","./exports"+filename+".jpg")
 
 plt.show()
