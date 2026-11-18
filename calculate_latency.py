@@ -1,42 +1,69 @@
-import csv, os, json
+import csv, os, json, argparse
+from pathlib import Path
 
-for i in os.listdir("./raw"):
-    splitname = os.path.splitext(i)
-    if splitname[-1].lower() == ".csv":
-        print(i,"✓" if os.path.exists("./latencies/"+splitname[0]+".json") else "X")
+def calculate_latencies(fileinput,fileoutput):
+    data = {
+        "latencies": [],
+        "timestamps": []
+    }
 
-file = input("File: ")
+    with open(fileinput, newline='') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
-filename = os.path.splitext(file)[0]
+        c1polarity, c2polarity, triggertime = 0, 0, 0
+        triggerwait = False
 
-filejson = "./latencies/"+filename+".json"
+        mintime = 0
 
-data = []
+        n = 0
+        for row in csvreader:
+            n += 1
+            if n < 2:
+                continue
+            
+            time, c1, c2 = [float(i) for i in row]
 
-with open("./raw/"+file, newline='') as csvfile:
-    csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            mintime = min(time,mintime)
 
-    c1polarity, c2polarity, triggertime = 0, 0, 0
-    triggerwait = False
+            c1polarity = c1 > 5
+            c2polarity = c2 > 5
 
-    n = 0
-    for row in csvreader:
-        n += 1
-        if n < 2:
-            continue
-        
-        time, c1, c2 = [float(i) for i in row]
+            if c1polarity != c2polarity and not triggerwait:
+                triggertime = time
+                triggerwait = True
+            if c1polarity == c2polarity and triggerwait:
+                data["latencies"].append((time-triggertime)*1000)
+                data["timestamps"].append((time-mintime)*1000)
+                triggerwait = False
+    with open(fileoutput, "w") as f:
+        f.write(json.dumps(data))
 
-        c1polarity = c1 > 5
-        c2polarity = c2 > 5
+    print("Finished processing with",len(data["latencies"]),"datapoints. Data saved to",fileoutput)
 
-        if c1polarity != c2polarity and not triggerwait:
-            triggertime = time
-            triggerwait = True
-        if c1polarity == c2polarity and triggerwait:
-            data.append((time-triggertime)*1000)
-            triggerwait = False
-with open(filejson, "w") as f:
-    f.write(json.dumps(data))
+def main():
+    parser = argparse.ArgumentParser(
+        prog='Latency Calculator',
+        description='Takes raw csv data from the oscilloscope (time, c1, c2) and outputs the latencies between the signals as a json.',
+    )
 
-print("Finished processing with",len(data),"datapoints. Data saved to ",filejson)
+    parser.add_argument(
+        "input",
+        type=Path,
+        help="Input CSV file"
+    )
+
+    parser.add_argument(
+        "-o", "--output",
+        type=Path,
+        help="Output JSON file (default: input filename with .json)"
+    )
+
+    args = parser.parse_args()
+
+    calculate_latencies(
+        args.input,
+        args.output or "./latencies/"+args.input.stem+".json"
+    )
+
+if __name__ == "__main__":
+    main()

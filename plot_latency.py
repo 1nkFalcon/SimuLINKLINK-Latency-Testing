@@ -4,44 +4,91 @@ import numpy as np
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 
-import os, json
+import os, json, argparse
 
-for i in os.listdir("./latencies"):
-    splitname = os.path.splitext(i)
-    if splitname[-1].lower() == ".json":
-        print(i,"✓" if os.path.exists("./exports/"+splitname[0]+".jpg") else "X")
+from pathlib import Path
 
-file = input("File: ")
+def plot_latency(inputfile,outputfile,bins,title,show,line):
+    data = []
 
-filename = os.path.splitext(file)[0]
+    with open(inputfile, "r") as f:
+        data = json.load(f)
 
-data = []
+    # plotting
 
-with open("./latencies/"+filename+".json", "r") as f:
-    data = json.load(f)
+    fig, axs = plt.subplots(1, 1, sharey=True, tight_layout=True)
 
-# plotting
+    # We can set the number of bins with the *bins* keyword argument.
+    if line:
+        axs.plot(data["timestamps"],data["latencies"],marker="o")
+        plt.xlabel("Time (ms)")
+        plt.ylabel("Latency (ms)")
+    else:
+        axs.hist(data["latencies"], bins=bins)
+        plt.xlabel("Latency (ms)")
+        plt.ylabel("Frequency")
 
-bincount = input("Bin count (default 20): ")
-if bincount == "":
-    bincount = 20
+    plt.title(title)
 
-bincount = int(bincount)
+    plt.savefig(outputfile)
 
-fig, axs = plt.subplots(1, 1, sharey=True, tight_layout=True)
+    print("Plot saved to",outputfile)
 
-# We can set the number of bins with the *bins* keyword argument.
-axs.hist(data, bins=bincount)
+    if show:
+        plt.show()
 
-relaytime = input("Relay Rate (ms): ")
-samplingtime = input("Sampling Rate (ms): ")
+def main():
+    parser = argparse.ArgumentParser(
+        prog='Latency Grapher',
+        description='Takes a json of latencies (ms) and plots a histogram.',
+    )
 
-plt.title(f"SimuLINKLINK Round-Trip Latency ({relaytime}ms Relay / {samplingtime}ms Sampling)")
-plt.xlabel("Latency (ms)")
-plt.ylabel("Frequency")
+    parser.add_argument(
+        "input",
+        type=Path,
+        help="Input json file"
+    )
 
-plt.savefig("./exports/"+filename+".jpg")
+    parser.add_argument(
+        "-o", "--output",
+        type=Path,
+        help="Output jpg file (default: input filename with .jpg)"
+    )
 
-print("Plot saved to","./exports"+filename+".jpg")
+    parser.add_argument(
+        "-b", "--bins",
+        type=int,
+        default=20,
+        help="Number of bins (default: 20)"
+    )
 
-plt.show()
+    parser.add_argument(
+        "-t", "--title",
+        help="Title for the graph"
+    )
+
+    parser.add_argument(
+        "-l", "--line",
+        action="store_true",
+        help="Use a line graph instead of a histogram"
+    )
+
+    parser.add_argument(
+        "--hide",
+        action="store_true",
+        help="Hide resulting graph"
+    )
+
+    args = parser.parse_args()
+
+    plot_latency(
+        args.input,
+        args.output or "./exports/"+args.input.stem+("_line" if args.line else "_hist")+".jpg",
+        args.bins,
+        args.title,
+        not args.hide,
+        args.line
+    )
+
+if __name__ == "__main__":
+    main()

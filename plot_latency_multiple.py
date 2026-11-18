@@ -4,71 +4,131 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 
-import os, json
+import os, json, argparse
 
-for i in os.listdir("./latencies"):
-    splitname = os.path.splitext(i)
-    if splitname[-1].lower() == ".json":
-        print(i)
+from pathlib import Path
 
-files = []
-labels = []
-while True:
-    file = "./latencies/"+input("File: ")
-    if file == "./latencies/":
-        break
-    elif os.path.exists(file):
-        labels.append(input("Label: "))
-        files.append(file)
-        print(f"File {file} added with label {labels[-1]}")
+def plot_latencies(inputfiles,labels,colors,outputfile,title,show,line):
+    data = []
+
+    for i in inputfiles:
+        with open(i, "r") as f:
+            data.append(json.load(f))
+
+    # plotting
+
+    if line:
+        for i in range(len(inputfiles)):
+            sns.lineplot(
+                x=data[i]["timestamps"],
+                y=data[i]["latencies"],
+                color=colors[i],
+                alpha=0.5,
+                label=labels[i],
+                marker="o"
+            )
+
+        plt.xlabel('Timestamp (ms)')
+        plt.ylabel('Latency')
     else:
-        print(f"File {file} not found.")
+        for i in range(len(inputfiles)):
+            sns.histplot(
+                data=data[i]["latencies"],
+                color=colors[i],
+                alpha=0.5,
+                label=labels[i],
+                binrange=(0,50),
+                binwidth=2,
+                kde=True
+            )
 
-data = []
+        plt.xlabel('Latency (ms)')
+        plt.ylabel('Frequency')
 
-for i in files:
-    with open(i, "r") as f:
-        data.append(json.load(f))
+    # Adding labels and legend
+    plt.title(title)
+    plt.legend()
 
-# plotting
+    plt.savefig(outputfile)
 
-bincount = input("Bin count (default 20): ")
-if bincount == "":
-    bincount = 20
+    print("Plot saved to",outputfile)
 
-bincount = int(bincount)
+    if show:
+        plt.show()
 
-colors = [
-    "red",
-    "orange",
-    "yellow",
-    "green",
-    "blue"
-]
-
-for i in range(len(files)):
-    sns.histplot(
-        data=data[i],
-        color=colors[i],
-        alpha=0.5,
-        label=labels[i],
-        binrange=(0,50),
-        binwidth=2,
-        kde=True
+def main():
+    parser = argparse.ArgumentParser(
+        prog='Latency Grapher',
+        description='Takes a json of latencies (ms) and plots a histogram.',
     )
 
-# Adding labels and legend
-samplingtime = input("Sampling time (ms): ")
-plt.title(f"SimuLINKLINK Round-Trip Latency ({samplingtime}ms Sampling)")
+    parser.add_argument(
+        "-i","--inputs",
+        type=Path,
+        nargs="+",
+        help="Input json files (ordered)"
+    )
 
-plt.xlabel('Latency (ms)')
-plt.ylabel('Frequency')
-plt.legend()
+    parser.add_argument(
+        "-l","--labels",
+        nargs="+",
+        help="Input labels (ordered)"
+    )
 
-filename = "_".join(labels)+"_comparison"
+    parser.add_argument(
+        "-c","--colors",
+        nargs="+",
+        help="Input colors (ordered, default: red, orange, yellow, green, blue, purple)"
+    )
 
-plt.savefig("./exports/"+filename+".jpg")
+    parser.add_argument(
+        "-o", "--output",
+        type=Path,
+        help="Output jpg file (default: input filename with .jpg)"
+    )
 
-print("Plot saved to","./exports"+filename+".jpg")
+    parser.add_argument(
+        "-b", "--bins",
+        type=int,
+        default=20,
+        help="Number of bins (default: 20)"
+    )
 
-plt.show()
+    parser.add_argument(
+        "-t", "--title",
+        help="Title for the graph"
+    )
+
+    parser.add_argument(
+        "--line",
+        action="store_true",
+        help="Use a line graph instead of a histogram"
+    )
+
+    parser.add_argument(
+        "--hide",
+        action="store_true",
+        help="Hide resulting graph"
+    )
+
+    args = parser.parse_args()
+
+    plot_latencies(
+        args.inputs,
+        args.labels,
+        args.colors or [
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "blue",
+            "purple"
+        ],
+        args.output or "./exports/"+"_".join(args.labels)+".jpg",
+        args.title,
+        not args.hide,
+        args.line
+    )
+
+if __name__ == "__main__":
+    main()
