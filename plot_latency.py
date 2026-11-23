@@ -1,14 +1,14 @@
+import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
 
 from matplotlib import colors
 from matplotlib.ticker import PercentFormatter
 
-import os, json, argparse
+import os, json, argparse, pandas
 
 from pathlib import Path
 
-def plot_latency(inputfile,outputfile,bins,title,show,line):
+def plot_latency(inputfile,outputfile,bins,title,show,graph):
     data = []
 
     with open(inputfile, "r") as f:
@@ -19,28 +19,39 @@ def plot_latency(inputfile,outputfile,bins,title,show,line):
     fig, axs = plt.subplots(1, 1, sharey=True, tight_layout=True)
 
     # We can set the number of bins with the *bins* keyword argument.
-    if line:
-        axs.plot(data["timestamps"],data["latencies"],marker="o")
-        plt.xlabel("Time (ms)")
-        plt.ylabel("Latency (ms)")
-    else:
-        axs.hist(data["latencies"], bins=bins)
-        plt.xlabel("Latency (ms)")
-        plt.ylabel("Frequency")
+    match graph:
+        case "hist":
+            sns.histplot(data["latencies"], bins=bins,stat="percent")
+            plt.xlabel("Latency (ms)")
+            plt.ylabel("Frequency (Percent)")
+        case "line":
+            sns.lineplot(x=data["timestamps"],y=data["latencies"],marker="o")
+            plt.xlabel("Time (ms)")
+            plt.ylabel("Latency (ms)")
+        case "box":
+            sns.boxplot(x=data["latencies"])
+            plt.xlabel("Time (ms)")
+        case "none":
+            pass
+        case _:
+            raise Exception(f"Graph type {graph} not supported.")
 
     plt.title(title)
 
-    plt.savefig(outputfile)
+    if graph != "none":
+        plt.savefig(outputfile)
 
-    print("Plot saved to",outputfile)
+        print("Plot saved to",outputfile)
 
-    if show:
+    if show and graph != "none":
         plt.show()
+
+    print(pandas.Series(data["latencies"],name="Latencies").describe())
 
 def main():
     parser = argparse.ArgumentParser(
         prog='Latency Grapher',
-        description='Takes a json of latencies (ms) and plots a histogram.',
+        description='Takes a json of latencies (ms) and plots a graph of the data. Also prints summary statistics of the dataset.',
     )
 
     parser.add_argument(
@@ -68,9 +79,9 @@ def main():
     )
 
     parser.add_argument(
-        "-l", "--line",
-        action="store_true",
-        help="Use a line graph instead of a histogram"
+        "-g", "--graph",
+        default="hist",
+        help="Graph type (hist, line, box, none. default: hist)"
     )
 
     parser.add_argument(
@@ -83,11 +94,11 @@ def main():
 
     plot_latency(
         args.input,
-        args.output or "./exports/"+args.input.stem+("_line" if args.line else "_hist")+".jpg",
+        args.output or "./exports/"+args.input.stem+"_"+args.graph+".jpg",
         args.bins,
         args.title,
         not args.hide,
-        args.line
+        args.graph
     )
 
 if __name__ == "__main__":
